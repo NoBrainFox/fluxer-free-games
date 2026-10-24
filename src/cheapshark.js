@@ -31,8 +31,9 @@ export function assetUrl(path) {
   return path.startsWith('http') ? path : `${BASE}${path}`;
 }
 
+// CheapShark already returns dealIDs URL-encoded, so they must not be encoded again.
 export function dealUrl(dealID) {
-  return `${BASE}/redirect?dealID=${encodeURIComponent(dealID)}`;
+  return `${BASE}/redirect?dealID=${dealID}`;
 }
 
 export async function getStores() {
