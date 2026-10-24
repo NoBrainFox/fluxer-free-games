@@ -152,10 +152,34 @@ function registerHandlers(client) {
 // passes the bare token, so try the documented form first and fall back once.
 const identifyTokens = [`Bot ${config.token}`, config.token];
 let gateway;
+let loggedGatewayUrl;
 
 function fatal(message) {
   console.error(`[bot] ${message}`);
   process.exit(1);
+}
+
+// Check the API URL and token over REST first; the errors are much clearer than the gateway's.
+async function checkApi() {
+  console.log(`[api] using ${config.apiUrl}/v${config.apiVersion}`);
+  try {
+    const me = await rest.get('/users/@me');
+    console.log(`[api] token belongs to @${me.username}`);
+  } catch (err) {
+    if (err.status === 401) {
+      fatal(
+        `${config.apiUrl} rejected the bot token (HTTP 401). Check FLUXER_BOT_TOKEN, and that the bot was ` +
+          'created on the same Fluxer instance FLUXER_API_URL points to.',
+      );
+    }
+    if (err.status === 404) {
+      fatal(
+        `${config.apiUrl}/v${config.apiVersion} is not a Fluxer API (HTTP 404). For a self-hosted instance set ` +
+          'FLUXER_API_URL to the part of your API URL before /v1, e.g. https://chat.example.com/api.',
+      );
+    }
+    fatal(`could not reach the Fluxer API at ${config.apiUrl}: ${err.message}`);
+  }
 }
 
 async function connect(attempt = 0) {
@@ -166,6 +190,16 @@ async function connect(attempt = 0) {
     version: config.apiVersion,
   });
   registerHandlers(new Client({ rest, gateway }));
+
+  // Log (and optionally override) where the gateway connection goes, so a
+  // self-hosted setup that still points at fluxer.app is easy to spot.
+  const fetchGatewayInformation = gateway.fetchGatewayInformation.bind(gateway);
+  gateway.fetchGatewayInformation = async (force) => {
+    const info = await fetchGatewayInformation(force);
+    const url = config.gatewayUrl || info.url;
+    if (url !== loggedGatewayUrl) console.log(`[gateway] connecting to ${(loggedGatewayUrl = url)}`);
+    return { ...info, url };
+  };
 
   // Without a listener the manager's 'error' event would crash the process.
   gateway.on(WebSocketShardEvents.Error, (err) => {
@@ -200,4 +234,5 @@ function shutdown(signal) {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
+await checkApi();
 await connect();
