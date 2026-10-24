@@ -62,8 +62,8 @@ test('PostedState persists and forgets old deals', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'fg-'));
   const state = new PostedState(dir);
   await state.load();
-  state.markPosted('old', undefined, 0);
-  state.markPosted('new', undefined, Date.now());
+  state.markPosted('old', null, null, {}, 0);
+  state.markPosted('new', null);
   state.initialized = true;
   state.touch(['new']);
   await state.save();
@@ -87,9 +87,9 @@ test('PostedState lists posts whose deal has been gone longer than the grace per
   const state = new PostedState('/nonexistent');
   const hour = 60 * 60 * 1000;
   const now = 10 * hour;
-  state.markPosted('gone', { channelId: 'c', messageId: 'm1' }, now - 3 * hour);
-  state.markPosted('recent', { channelId: 'c', messageId: 'm2' }, now - 3 * hour);
-  state.markPosted('noMessage', undefined, now - 3 * hour);
+  state.markPosted('gone', 'c', 'm1', {}, now - 3 * hour);
+  state.markPosted('recent', 'c', 'm2', {}, now - 3 * hour);
+  state.markPosted('noMessage', 'c', null, {}, now - 3 * hour);
   state.touch(['recent'], now);
   assert.deepEqual(state.expired(2 * hour, now).map(([id]) => id), ['gone']);
   state.forget('gone');

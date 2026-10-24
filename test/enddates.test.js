@@ -83,11 +83,11 @@ test('endDateText renders timestamp tags and credits GamerPower', () => {
 test('posts with a passed end date count as expired even while still listed', () => {
   const state = new PostedState('/nonexistent');
   const now = Date.now();
-  state.markPosted('ended', { channelId: 'c', messageId: 'm', endsAt: now - 1000 }, now - 5000);
-  state.markPosted('running', { channelId: 'c', messageId: 'm2', endsAt: now + 100000 }, now - 5000);
+  state.markPosted('ended', 'c', 'm', { endsAt: now - 1000 }, now - 5000);
+  state.markPosted('running', 'c', 'm2', { endsAt: now + 100000 }, now - 5000);
   state.touch(['ended', 'running'], now);
   assert.deepEqual(state.expired(2 * 60 * 60 * 1000, now).map(([id]) => id), ['ended']);
-  state.forgetMessage('ended');
+  state.forgetMessage('ended', 'c');
   assert.equal(state.has('ended'), true);
   assert.equal(state.expired(2 * 60 * 60 * 1000, now).length, 0);
 });

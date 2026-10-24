@@ -1,4 +1,4 @@
-// Remembers which deals were already announced so restarts never repost them.
+// Remembers which deals were already announced in which channel so restarts never repost them.
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -6,6 +6,8 @@ import { join } from 'node:path';
 // of the same game gets announced again.
 const FORGET_AFTER_MS = 14 * 24 * 60 * 60 * 1000;
 
+// Each deal is stored as { postedAt, lastSeen, endsAt?, channels: { channelId: messageId | null } }.
+// A channel key means the deal was announced there; null means the post is gone or was never kept.
 export class PostedState {
   constructor(dataDir) {
     this.dataDir = dataDir;
@@ -14,7 +16,8 @@ export class PostedState {
     this.deals = {};
   }
 
-  async load() {
+  // legacyChannelId: where deals saved by older versions (one channel only) were posted.
+  async load(legacyChannelId = '') {
     await mkdir(this.dataDir, { recursive: true });
     try {
       const saved = JSON.parse(await readFile(this.file, 'utf8'));
@@ -23,28 +26,55 @@ export class PostedState {
     } catch (err) {
       if (err.code !== 'ENOENT') console.warn(`[state] could not read ${this.file}, starting fresh:`, err.message);
     }
+    this.migrate(legacyChannelId);
+  }
+
+  migrate(legacyChannelId) {
+    for (const entry of Object.values(this.deals)) {
+      if (entry.channels) continue;
+      const channelId = entry.channelId ?? legacyChannelId;
+      entry.channels = channelId ? { [channelId]: entry.messageId ?? null } : {};
+      delete entry.channelId;
+      delete entry.messageId;
+    }
   }
 
   has(dealID) {
     return dealID in this.deals;
   }
 
-  // message ({ channelId, messageId }) is kept so the post can be deleted once the deal expires.
-  markPosted(dealID, message, now = Date.now()) {
-    this.deals[dealID] = { postedAt: now, lastSeen: now, ...message };
+  postedIn(dealID, channelId) {
+    return channelId in (this.deals[dealID]?.channels ?? {});
+  }
+
+  // messageId is kept so the post can be deleted once the deal expires (null if not kept).
+  markPosted(dealID, channelId, messageId = null, extra = {}, now = Date.now()) {
+    const entry = (this.deals[dealID] ??= { postedAt: now, lastSeen: now, channels: {} });
+    Object.assign(entry, extra);
+    if (channelId) entry.channels[channelId] = messageId;
   }
 
   // Posted deals that have not been free for longer than graceMs, or whose known end
-  // date has passed. Call after touch().
+  // date has passed, and still have a post somewhere. Call after touch().
   expired(graceMs, now = Date.now()) {
     return Object.entries(this.deals).filter(
-      ([, entry]) => entry.messageId && (now - entry.lastSeen > graceMs || (entry.endsAt && now >= entry.endsAt)),
+      ([, entry]) =>
+        Object.values(entry.channels).some(Boolean) &&
+        (now - entry.lastSeen > graceMs || (entry.endsAt && now >= entry.endsAt)),
     );
   }
 
-  // The post is gone but the deal is still listed as free, so keep remembering it to avoid a repost.
-  forgetMessage(dealID) {
-    if (this.deals[dealID]) delete this.deals[dealID].messageId;
+  // The post is gone, but keep the channel so the deal isn't announced there again.
+  forgetMessage(dealID, channelId) {
+    const channels = this.deals[dealID]?.channels;
+    if (channels && channelId in channels) channels[channelId] = null;
+  }
+
+  // [[dealID, messageId]] for every known post in a channel.
+  messagesIn(channelId) {
+    return Object.entries(this.deals)
+      .filter(([, entry]) => entry.channels[channelId])
+      .map(([dealID, entry]) => [dealID, entry.channels[channelId]]);
   }
 
   forget(dealID) {
