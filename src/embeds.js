@@ -14,12 +14,24 @@ function storeFooter(store) {
 }
 
 // A rich embed for a single free deal, with a large preview image when one is available.
-export function dealEmbed(deal, storesById) {
+// "Free until" value: Discord-style timestamps render in each viewer's timezone with a live countdown.
+export function endDateText(end, style = 'discord') {
+  const seconds = Math.floor(end.endsAt.getTime() / 1000);
+  const when =
+    style === 'text'
+      ? `${end.endsAt.toUTCString().replace(':00 GMT', ' UTC')}`
+      : `<t:${seconds}:f> (<t:${seconds}:R>)`;
+  // GamerPower's terms require a link back when their data is shown.
+  return end.source === 'gamerpower' ? `${when} · via [GamerPower](https://www.gamerpower.com)` : when;
+}
+
+export function dealEmbed(deal, storesById, end = null, endStyle = 'discord') {
   const store = storesById.get(deal.storeID);
   const fields = [
     { name: 'Price', value: `~~${money(deal.normalPrice)}~~ → **FREE**`, inline: true },
     { name: 'Store', value: store?.storeName ?? `Store ${deal.storeID}`, inline: true },
   ];
+  if (end) fields.push({ name: 'Free until', value: endDateText(end, endStyle), inline: false });
   if (deal.steamRatingText && deal.steamRatingPercent !== '0') {
     fields.push({ name: 'Steam rating', value: `${deal.steamRatingText} (${deal.steamRatingPercent}%)`, inline: true });
   }
