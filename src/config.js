@@ -59,7 +59,9 @@ export function loadConfig() {
 
   return {
     token,
-    apiUrl: str('FLUXER_API_URL', 'https://api.fluxer.app'),
+    apiUrl: str('FLUXER_API_URL', 'https://api.fluxer.app').replace(/\/+$/, ''),
+    // Optional: overrides the gateway URL the API advertises (useful for self-hosted instances).
+    gatewayUrl: str('FLUXER_GATEWAY_URL'),
     apiVersion: str('FLUXER_API_VERSION', '1'),
     intents: int('FLUXER_GATEWAY_INTENTS', 0),
     channelId,

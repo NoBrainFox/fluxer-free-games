@@ -62,8 +62,9 @@ Everything is set in `.env`.
 | `POST_ON_FIRST_RUN` | `true` | On the very first start, announce games that are already free. Set to `false` to only announce future giveaways |
 | `COMMAND_PREFIX` | `!` | Prefix for commands |
 | `COMMAND_COOLDOWN_SECONDS` | `10` | Minimum time between commands per channel |
-| `FLUXER_API_URL` | `https://api.fluxer.app` | Change only for a self-hosted Fluxer instance |
+| `FLUXER_API_URL` | `https://api.fluxer.app` | API base URL, the part before `/v1`. Set it for a self-hosted Fluxer instance, see below |
 | `FLUXER_API_VERSION` | `1` | Fluxer API version |
+| `FLUXER_GATEWAY_URL` | *(from the API)* | Overrides the gateway URL the API advertises. Only needed if your instance advertises the wrong one |
 | `FLUXER_GATEWAY_INTENTS` | `0` | Gateway intents bitfield (the official docs use 0) |
 
 Common CheapShark store IDs: `1` Steam, `3` GreenManGaming, `7` GOG, `11` Humble Store, `13` Ubisoft, `15` Fanatical, `25` Epic Games Store. Run `!stores` in Fluxer for the full, current list.
@@ -84,6 +85,15 @@ Common CheapShark store IDs: `1` Steam, `3` GreenManGaming, `7` GOG, `11` Humble
 - CheapShark responses are cached in memory (stores for 24 hours, deals for 10 minutes), so commands don't cause extra API calls.
 - The poll interval can't go below 15 minutes.
 - Announcements are spaced 1.5 seconds apart to stay well under Fluxer's limit of 5 messages per 5 seconds per channel.
+
+## Self-hosted Fluxer
+
+By default the bot talks to the public instance at `api.fluxer.app`. For your own instance:
+
+1. Create the bot application on **your** instance; tokens from fluxer.app don't work elsewhere and vice versa.
+2. Set `FLUXER_API_URL` to your API base, the part of the URL before `/v1`. To find it, open your Fluxer web app, open the browser dev tools on the Network tab and look at any API request, e.g. `https://chat.example.com/api/v1/users/@me` means `FLUXER_API_URL=https://chat.example.com/api`.
+3. Start the bot and check the log: it prints the API URL, the bot's name and the gateway URL it connects to. The gateway URL comes from your instance's `/gateway/bot` response; if it still points to `gateway.fluxer.app`, set `FLUXER_GATEWAY_URL` to your own gateway.
+4. Invite the bot with your own domain in the URL, e.g. `https://chat.example.com/oauth2/authorize?client_id=…&scope=bot&permissions=84992`.
 
 ## Troubleshooting
 
