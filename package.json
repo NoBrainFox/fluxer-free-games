@@ -1,0 +1,24 @@
+{
+  "name": "fluxer-freegames-bot",
+  "version": "1.0.0",
+  "description": "Fluxer bot that posts currently free games from CheapShark",
+  "type": "module",
+  "main": "src/index.js",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@discordjs/core": "2.4.0",
+    "@discordjs/rest": "2.6.0",
+    "@discordjs/ws": "2.0.4"
+  },
+  "overrides": {
+    "undici": "6.29.1"
+  }
+}

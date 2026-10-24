@@ -1,0 +1,26 @@
+services:
+  freegames-bot:
+    build: .
+    image: fluxer-freegames-bot:latest
+    container_name: fluxer-freegames-bot
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - bot-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 128m
+    cpus: 0.25
+    logging:
+      driver: json-file
+      options:
+        max-size: 1m
+        max-file: "3"
+
+volumes:
+  bot-data:
