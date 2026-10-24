@@ -1,6 +1,6 @@
-import { Client, GatewayDispatchEvents } from '@discordjs/core';
+import { API, Client, GatewayDispatchEvents } from '@discordjs/core';
 import { REST } from '@discordjs/rest';
-import { WebSocketManager } from '@discordjs/ws';
+import { WebSocketManager, WebSocketShardEvents } from '@discordjs/ws';
 import { getFreeDeals, getStores, resolveStores } from './cheapshark.js';
 import { loadConfig } from './config.js';
 import { dealEmbed, dealListEmbed, helpEmbed, mentionFor, storesEmbed } from './embeds.js';
@@ -12,8 +12,7 @@ await state.load();
 
 // Same setup as the official Fluxer quickstart: Fluxer's API is Discord-compatible.
 const rest = new REST({ api: config.apiUrl, version: config.apiVersion }).setToken(config.token);
-const gateway = new WebSocketManager({ intents: config.intents, rest, token: config.token, version: config.apiVersion });
-const client = new Client({ rest, gateway });
+const api = new API(rest);
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -49,7 +48,7 @@ async function poll() {
       console.log(`[poll] ${deals.length} free deal(s), ${fresh.length} new`);
       const mention = mentionFor(config.mentionRole);
       for (const [index, deal] of fresh.entries()) {
-        await client.api.channels.createMessage(config.channelId, {
+        await api.channels.createMessage(config.channelId, {
           // Ping the role once per batch, not once per game.
           content: index === 0 ? mention.content : undefined,
           allowed_mentions: index === 0 ? mention.allowed_mentions : { parse: [] },
@@ -124,28 +123,74 @@ async function handleCommand(api, message, name, args) {
 
 const COMMANDS = new Set(['free', 'freegames', 'stores', 'help']);
 
-client.on(GatewayDispatchEvents.MessageCreate, async ({ api, data }) => {
-  if (data.author?.bot || !data.content?.startsWith(config.prefix)) return;
-  const [name, ...args] = data.content.slice(config.prefix.length).trim().split(/\s+/);
-  const command = name?.toLowerCase();
-  if (!COMMANDS.has(command)) return;
+function registerHandlers(client) {
+  client.on(GatewayDispatchEvents.MessageCreate, async ({ api, data }) => {
+    if (data.author?.bot || !data.content?.startsWith(config.prefix)) return;
+    const [name, ...args] = data.content.slice(config.prefix.length).trim().split(/\s+/);
+    const command = name?.toLowerCase();
+    if (!COMMANDS.has(command)) return;
 
-  // Per-channel cooldown keeps chatty channels from hammering the APIs.
-  const now = Date.now();
-  if (now - (lastCommandAt.get(data.channel_id) ?? 0) < config.commandCooldownSeconds * 1000) return;
-  lastCommandAt.set(data.channel_id, now);
+    // Per-channel cooldown keeps chatty channels from hammering the APIs.
+    const now = Date.now();
+    if (now - (lastCommandAt.get(data.channel_id) ?? 0) < config.commandCooldownSeconds * 1000) return;
+    lastCommandAt.set(data.channel_id, now);
+
+    try {
+      await handleCommand(api, data, command, args);
+    } catch (err) {
+      console.error(`[command] ${command} failed:`, err.message);
+    }
+  });
+
+  client.on(GatewayDispatchEvents.Ready, ({ data }) => {
+    console.log(`[gateway] logged in as @${data.user.username}`);
+    schedulePolling();
+  });
+}
+
+// Fluxer's gateway docs say IDENTIFY needs the "Bot " prefix, while the quickstart
+// passes the bare token, so try the documented form first and fall back once.
+const identifyTokens = [`Bot ${config.token}`, config.token];
+let gateway;
+
+function fatal(message) {
+  console.error(`[bot] ${message}`);
+  process.exit(1);
+}
+
+async function connect(attempt = 0) {
+  gateway = new WebSocketManager({
+    intents: config.intents,
+    rest,
+    token: identifyTokens[attempt],
+    version: config.apiVersion,
+  });
+  registerHandlers(new Client({ rest, gateway }));
+
+  // Without a listener the manager's 'error' event would crash the process.
+  gateway.on(WebSocketShardEvents.Error, (err) => {
+    if (err.message !== 'Authentication failed') console.error('[gateway] error:', err.message);
+  });
 
   try {
-    await handleCommand(api, data, command, args);
+    await gateway.connect();
   } catch (err) {
-    console.error(`[command] ${command} failed:`, err.message);
+    if (err.message === 'Authentication failed') {
+      await gateway.destroy().catch(() => {});
+      if (attempt + 1 < identifyTokens.length) {
+        console.warn('[gateway] login rejected, retrying with the token format from the Fluxer quickstart');
+        return connect(attempt + 1);
+      }
+      fatal(
+        'Fluxer rejected the bot token (gateway close code 4004). Check FLUXER_BOT_TOKEN in .env: ' +
+          'it must be the token from the Bot section of your application, not the client secret, ' +
+          'and it changes every time you click "Reset Token".',
+      );
+    }
+    if (err.status === 401) fatal('Fluxer rejected the bot token (HTTP 401). Check FLUXER_BOT_TOKEN in .env.');
+    fatal(`could not connect to Fluxer at ${config.apiUrl}: ${err.message}`);
   }
-});
-
-client.on(GatewayDispatchEvents.Ready, ({ data }) => {
-  console.log(`[gateway] logged in as @${data.user.username}`);
-  schedulePolling();
-});
+}
 
 function shutdown(signal) {
   console.log(`[bot] ${signal} received, shutting down`);
@@ -155,4 +200,4 @@ function shutdown(signal) {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
-await gateway.connect();
+await connect();

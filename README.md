@@ -66,6 +66,10 @@ Common CheapShark store IDs: `1` Steam, `3` GreenManGaming, `7` GOG, `11` Humble
 - The poll interval can't go below 15 minutes.
 - Announcements are spaced 1.5 seconds apart to stay well under Fluxer's limit of 5 messages per 5 seconds per channel.
 
+## Troubleshooting
+
+**`Fluxer rejected the bot token`**: `FLUXER_BOT_TOKEN` is wrong. Copy the token from the **Bot** section of your application (User Settings > Applications), not the client secret. Resetting the token invalidates the old one, so update `.env` after every reset and run `docker compose up -d` again. Quotes and a `Bot ` prefix around the token are fine; the bot strips them.
+
 ## Data
 
 The list of already announced deals lives in `/data/posted.json` in the `bot-data` Docker volume. Delete the volume (`docker compose down -v`) to start fresh. A deal that hasn't been free for 14 days is forgotten, so a later giveaway of the same game is announced again.
