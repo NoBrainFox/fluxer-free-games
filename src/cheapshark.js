@@ -3,7 +3,11 @@
 
 const BASE = (process.env.CHEAPSHARK_URL || 'https://www.cheapshark.com').replace(/\/$/, '');
 const API = `${BASE}/api/1.0`;
-const USER_AGENT = 'fluxer-freegames-bot/1.0 (+https://www.cheapshark.com)';
+const CONTACT_EMAIL = (process.env.CONTACT_EMAIL || '').trim();
+// CheapShark asks API users to identify themselves; a contact address lets them reach the operator.
+const USER_AGENT = `fluxer-freegames-bot/1.0 (+https://github.com/NoBrainFox/fluxer-free-games${
+  CONTACT_EMAIL ? `; ${CONTACT_EMAIL}` : ''
+})`;
 
 const STORES_TTL_MS = 24 * 60 * 60 * 1000;
 const DEALS_TTL_MS = 10 * 60 * 1000;
