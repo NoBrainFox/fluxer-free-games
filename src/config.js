@@ -32,7 +32,10 @@ function list(name, fallback) {
 }
 
 export function loadConfig() {
-  const token = str('FLUXER_BOT_TOKEN');
+  // Accept the token with or without surrounding quotes or a "Bot " prefix; the bot adds the prefix itself.
+  const token = str('FLUXER_BOT_TOKEN')
+    .replace(/^["']|["']$/g, '')
+    .replace(/^Bot\s+/i, '');
   if (!token) throw new Error('FLUXER_BOT_TOKEN is required');
 
   const channelId = str('FLUXER_CHANNEL_ID');
