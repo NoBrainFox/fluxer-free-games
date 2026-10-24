@@ -13,7 +13,7 @@ Built on the same libraries the [official Fluxer quickstart](https://docs.fluxer
 
 ## Quick start
 
-1. **Create the bot in Fluxer.** Create an application, copy its bot token (`{application_id}.{secret}`) and invite the bot to your community with permission to read and send messages, embed links and mention roles in the announcement channel.
+1. **Create the bot in Fluxer.** Create an application, copy its bot token (`{application_id}.{secret}`) and invite the bot with the URL from [Inviting the bot](#inviting-the-bot).
 2. **Get the IDs.** Copy the ID of the announcement text channel and, if you want a ping, the ID of the role.
 3. **Configure and start:**
 
@@ -26,6 +26,25 @@ Built on the same libraries the [official Fluxer quickstart](https://docs.fluxer
    ```
 
 To update later: `git pull && docker compose up -d --build`.
+
+## Inviting the bot
+
+Open this URL with your application ID filled in and pick your community:
+
+```
+https://fluxer.app/oauth2/authorize?client_id=YOUR_APPLICATION_ID&scope=bot&permissions=84992
+```
+
+The only scope needed is `bot`. `84992` grants:
+
+| Permission | Value | Why |
+| --- | --- | --- |
+| View Channel | 1024 | See the announcement channel and command messages |
+| Send Messages | 2048 | Post announcements and command replies |
+| Embed Links | 16384 | Show the game embeds with preview images |
+| Read Message History | 65536 | Reply to command messages |
+
+If `MENTION_ROLE` is `everyone` or `here`, or the role you ping isn't set to be mentionable by everyone, also grant **Mention @everyone, @here and All Roles** (131072) by using `permissions=216064` instead. No admin rights and no extra gateway intents are needed.
 
 ## Configuration
 
