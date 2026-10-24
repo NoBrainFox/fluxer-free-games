@@ -62,8 +62,8 @@ test('PostedState persists and forgets old deals', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'fg-'));
   const state = new PostedState(dir);
   await state.load();
-  state.markPosted('old', 0);
-  state.markPosted('new', Date.now());
+  state.markPosted('old', undefined, 0);
+  state.markPosted('new', undefined, Date.now());
   state.initialized = true;
   state.touch(['new']);
   await state.save();
@@ -81,4 +81,17 @@ test('dealUrl keeps CheapShark dealIDs as they are (already URL-encoded)', async
     dealUrl('4pPw8jLAD9zaeoJQbKVcx%2F2aYv0KnVTyK74UaA5QzB4%3D'),
     'https://www.cheapshark.com/redirect?dealID=4pPw8jLAD9zaeoJQbKVcx%2F2aYv0KnVTyK74UaA5QzB4%3D',
   );
+});
+
+test('PostedState lists posts whose deal has been gone longer than the grace period', () => {
+  const state = new PostedState('/nonexistent');
+  const hour = 60 * 60 * 1000;
+  const now = 10 * hour;
+  state.markPosted('gone', { channelId: 'c', messageId: 'm1' }, now - 3 * hour);
+  state.markPosted('recent', { channelId: 'c', messageId: 'm2' }, now - 3 * hour);
+  state.markPosted('noMessage', undefined, now - 3 * hour);
+  state.touch(['recent'], now);
+  assert.deepEqual(state.expired(2 * hour, now).map(([id]) => id), ['gone']);
+  state.forget('gone');
+  assert.equal(state.has('gone'), false);
 });
