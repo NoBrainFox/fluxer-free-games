@@ -55,7 +55,7 @@ Everything is set in `.env`.
 | `FLUXER_BOT_TOKEN` | *(required)* | Bot token from Fluxer |
 | `FLUXER_CHANNEL_ID` | *(required)* | Text channel for automatic announcements |
 | `CONTACT_EMAIL` | *(recommended)* | Your contact email, sent in the User-Agent of CheapShark requests so CheapShark can reach you if the bot misbehaves |
-| `MENTION_ROLE` | *(empty)* | Role ID to ping, or `everyone`, `here`, or empty for no ping. The ping is sent once per batch of new games |
+| `MENTION_ROLE` | *(empty)* | Role to ping, by name (e.g. `Free Games`) or ID, or `everyone`, `here`, or empty for no ping. The ping is sent once per batch of new games |
 | `STORES` | `Steam,GOG,Epic Games Store` | Comma separated CheapShark store names or IDs, or `all`. Partial names work (`epic`) |
 | `POLL_INTERVAL_MINUTES` | `60` | How often to check CheapShark. Values outside 15 to 1440 are clamped |
 | `INCLUDE_FREE_TO_PLAY` | `false` | Also announce permanently free-to-play games |

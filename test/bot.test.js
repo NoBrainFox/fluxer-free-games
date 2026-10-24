@@ -74,3 +74,11 @@ test('PostedState persists and forgets old deals', async () => {
   assert.equal(reloaded.has('new'), true);
   assert.equal(reloaded.has('old'), false);
 });
+
+test('dealUrl keeps CheapShark dealIDs as they are (already URL-encoded)', async () => {
+  const { dealUrl } = await import('../src/cheapshark.js');
+  assert.equal(
+    dealUrl('4pPw8jLAD9zaeoJQbKVcx%2F2aYv0KnVTyK74UaA5QzB4%3D'),
+    'https://www.cheapshark.com/redirect?dealID=4pPw8jLAD9zaeoJQbKVcx%2F2aYv0KnVTyK74UaA5QzB4%3D',
+  );
+});

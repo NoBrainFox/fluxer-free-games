@@ -47,7 +47,7 @@ async function poll() {
       console.log(`[poll] first run, remembered ${fresh.length} current free deal(s) without posting`);
     } else {
       console.log(`[poll] ${deals.length} free deal(s), ${fresh.length} new`);
-      const mention = mentionFor(config.mentionRole);
+      const mention = mentionFor(mentionRole);
       for (const [index, deal] of fresh.entries()) {
         await sendMessage(api, config.channelId, {
           // Ping the role once per batch, not once per game.
@@ -235,5 +235,30 @@ function shutdown(signal) {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
+// MENTION_ROLE may be a role name; mentions need the role's ID, so look it up once.
+let mentionRole = config.mentionRole;
+async function resolveMentionRole() {
+  const value = mentionRole.replace(/^<@&|>$/g, '');
+  if (!value || /^\d+$/.test(value) || /^@?(everyone|here)$/i.test(value)) return;
+  try {
+    const channel = await rest.get(`/channels/${config.channelId}`);
+    const roles = await rest.get(`/guilds/${channel.guild_id}/roles`);
+    const role = roles.find((r) => r.name.toLowerCase() === value.toLowerCase());
+    if (role) {
+      mentionRole = role.id;
+      console.log(`[config] MENTION_ROLE "${value}" is role ${role.id}`);
+    } else {
+      mentionRole = '';
+      console.warn(
+        `[config] no role named "${value}", announcing without a ping. Roles: ${roles.map((r) => r.name).join(', ')}`,
+      );
+    }
+  } catch (err) {
+    mentionRole = '';
+    console.warn(`[config] could not look up role "${value}", announcing without a ping: ${err.message}`);
+  }
+}
+
 await checkApi();
+await resolveMentionRole();
 await connect();
