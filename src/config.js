@@ -47,6 +47,13 @@ export function loadConfig() {
     pollMinutes = clamped;
   }
 
+  const contactEmail = str('CONTACT_EMAIL');
+  if (!contactEmail) {
+    console.warn('[config] CONTACT_EMAIL is not set, CheapShark requests will not include a contact address');
+  } else if (!/^[^\s@;()]+@[^\s@;()]+$/.test(contactEmail)) {
+    throw new Error(`CONTACT_EMAIL does not look like an email address: "${contactEmail}"`);
+  }
+
   return {
     token,
     apiUrl: str('FLUXER_API_URL', 'https://api.fluxer.app'),

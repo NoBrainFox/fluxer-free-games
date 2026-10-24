@@ -20,7 +20,7 @@ Built on the same libraries the [official Fluxer quickstart](https://docs.fluxer
    ```sh
    git clone https://github.com/NoBrainFox/fluxer-free-games.git
    cd fluxer-free-games
-   cp .env.example .env    # then fill in FLUXER_BOT_TOKEN, FLUXER_CHANNEL_ID, MENTION_ROLE, STORES
+   cp .env.example .env    # then fill in FLUXER_BOT_TOKEN, FLUXER_CHANNEL_ID, CONTACT_EMAIL, MENTION_ROLE, STORES
    docker compose up -d --build
    docker compose logs -f
    ```
@@ -35,6 +35,7 @@ Everything is set in `.env`.
 | --- | --- | --- |
 | `FLUXER_BOT_TOKEN` | *(required)* | Bot token from Fluxer |
 | `FLUXER_CHANNEL_ID` | *(required)* | Text channel for automatic announcements |
+| `CONTACT_EMAIL` | *(recommended)* | Your contact email, sent in the User-Agent of CheapShark requests so CheapShark can reach you if the bot misbehaves |
 | `MENTION_ROLE` | *(empty)* | Role ID to ping, or `everyone`, `here`, or empty for no ping. The ping is sent once per batch of new games |
 | `STORES` | `Steam,GOG,Epic Games Store` | Comma separated CheapShark store names or IDs, or `all`. Partial names work (`epic`) |
 | `POLL_INTERVAL_MINUTES` | `60` | How often to check CheapShark. Values outside 15 to 1440 are clamped |
@@ -60,6 +61,7 @@ Common CheapShark store IDs: `1` Steam, `3` GreenManGaming, `7` GOG, `11` Humble
 
 ## Being nice to the APIs
 
+- Requests to CheapShark identify the bot with a User-Agent like `fluxer-freegames-bot/1.0 (+https://github.com/NoBrainFox/fluxer-free-games; you@example.com)`, using `CONTACT_EMAIL`.
 - CheapShark responses are cached in memory (stores for 24 hours, deals for 10 minutes), so commands don't cause extra API calls.
 - The poll interval can't go below 15 minutes.
 - Announcements are spaced 1.5 seconds apart to stay well under Fluxer's limit of 5 messages per 5 seconds per channel.
