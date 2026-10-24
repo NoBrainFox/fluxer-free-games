@@ -34,9 +34,17 @@ export class PostedState {
     this.deals[dealID] = { postedAt: now, lastSeen: now, ...message };
   }
 
-  // Posted deals that have not been free for longer than graceMs. Call after touch().
+  // Posted deals that have not been free for longer than graceMs, or whose known end
+  // date has passed. Call after touch().
   expired(graceMs, now = Date.now()) {
-    return Object.entries(this.deals).filter(([, entry]) => entry.messageId && now - entry.lastSeen > graceMs);
+    return Object.entries(this.deals).filter(
+      ([, entry]) => entry.messageId && (now - entry.lastSeen > graceMs || (entry.endsAt && now >= entry.endsAt)),
+    );
+  }
+
+  // The post is gone but the deal is still listed as free, so keep remembering it to avoid a repost.
+  forgetMessage(dealID) {
+    if (this.deals[dealID]) delete this.deals[dealID].messageId;
   }
 
   forget(dealID) {

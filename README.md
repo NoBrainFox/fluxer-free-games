@@ -60,6 +60,8 @@ Everything is set in `.env`.
 | `POLL_INTERVAL_MINUTES` | `60` | How often to check CheapShark. Values outside 15 to 1440 are clamped |
 | `INCLUDE_FREE_TO_PLAY` | `false` | Also announce permanently free-to-play games |
 | `POST_ON_FIRST_RUN` | `true` | On the very first start, announce games that are already free. Set to `false` to only announce future giveaways |
+| `SHOW_END_DATES` | `true` | Add a "Free until" field with the offer's end date, when one can be found |
+| `END_DATE_STYLE` | `discord` | `discord` shows `<t:…>` timestamps (local time plus a live countdown); `text` shows a plain UTC date if your client doesn't render them |
 | `DELETE_EXPIRED_POSTS` | `false` | Delete an announcement once the game is no longer free. Works for posts made by this version or later |
 | `DELETE_GRACE_MINUTES` | `120` | How long a game has to be missing from the free list before its post is deleted (minimum 15) |
 | `COMMAND_PREFIX` | `!` | Prefix for commands |
@@ -100,6 +102,12 @@ By default the bot talks to the public instance at `api.fluxer.app`. For your ow
 ## Troubleshooting
 
 **`Fluxer rejected the bot token`**: `FLUXER_BOT_TOKEN` is wrong. Copy the token from the **Bot** section of your application (User Settings > Applications), not the client secret. Resetting the token invalidates the old one, so update `.env` after every reset and run `docker compose up -d` again. Quotes and a `Bot ` prefix around the token are fine; the bot strips them.
+
+## End dates
+
+CheapShark doesn't say when a free offer ends, so for each new announcement the bot looks the game up in [Epic's free-games feed](https://store.epicgames.com/free-games) (exact dates for Epic Games Store) and on [GamerPower](https://www.gamerpower.com) (best effort for other stores, matched by title and store). Both lists are fetched at most every 30 minutes and only when there is something new to post. If no end date is found, the field is left out. Dates from GamerPower are credited with a link, as their API terms require.
+
+With `DELETE_EXPIRED_POSTS=true`, a post with a known end date is deleted as soon as that date passes, without waiting for the grace period.
 
 ## Deleting expired posts
 

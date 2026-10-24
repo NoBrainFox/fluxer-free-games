@@ -4,6 +4,7 @@ import { WebSocketManager, WebSocketShardEvents } from '@discordjs/ws';
 import { getFreeDeals, getStores, resolveStores } from './cheapshark.js';
 import { loadConfig } from './config.js';
 import { dealEmbed, dealListEmbed, helpEmbed, mentionFor, storesEmbed } from './embeds.js';
+import { findEndDate } from './enddates.js';
 import { sendMessage } from './send.js';
 import { PostedState } from './state.js';
 
@@ -49,13 +50,18 @@ async function poll() {
       console.log(`[poll] ${deals.length} free deal(s), ${fresh.length} new`);
       const mention = mentionFor(mentionRole);
       for (const [index, deal] of fresh.entries()) {
+        const end = config.showEndDates ? await findEndDate(deal.title, byId.get(deal.storeID)?.storeName) : null;
         const message = await sendMessage(api, config.channelId, {
           // Ping the role once per batch, not once per game.
           content: index === 0 ? mention.content : undefined,
           allowed_mentions: index === 0 ? mention.allowed_mentions : { parse: [] },
-          embeds: [dealEmbed(deal, byId)],
+          embeds: [dealEmbed(deal, byId, end, config.endDateStyle)],
         });
-        state.markPosted(deal.dealID, { channelId: message.channel_id ?? config.channelId, messageId: message.id });
+        state.markPosted(deal.dealID, {
+          channelId: message.channel_id ?? config.channelId,
+          messageId: message.id,
+          ...(end && { endsAt: end.endsAt.getTime() }),
+        });
         await state.save();
         // Stay well below Fluxer's 5 messages / 5 seconds per channel limit.
         await sleep(1500);
@@ -63,7 +69,7 @@ async function poll() {
     }
     state.initialized = true;
     await state.save();
-    if (config.deleteExpiredPosts) await deleteExpiredPosts();
+    if (config.deleteExpiredPosts) await deleteExpiredPosts(new Set(deals.map((d) => d.dealID)));
   } catch (err) {
     console.error('[poll] failed:', err.message, err.rawError ? JSON.stringify(err.rawError) : '');
   } finally {
@@ -73,7 +79,7 @@ async function poll() {
 
 // Only runs after a successful poll, so a CheapShark outage never deletes anything:
 // still-free deals have just had lastSeen refreshed by state.touch().
-async function deleteExpiredPosts() {
+async function deleteExpiredPosts(stillFree) {
   for (const [dealID, entry] of state.expired(config.deleteGraceMinutes * 60 * 1000)) {
     try {
       await api.channels.deleteMessage(entry.channelId, entry.messageId);
@@ -85,8 +91,10 @@ async function deleteExpiredPosts() {
         continue;
       }
     }
-    // Forget the deal so a later giveaway of the same game is announced again.
-    state.forget(dealID);
+    // Forget the deal so a later giveaway of the same game is announced again. If CheapShark
+    // still lists it (its end date passed first), only drop the message so it isn't reposted.
+    if (stillFree.has(dealID)) state.forgetMessage(dealID);
+    else state.forget(dealID);
     await state.save();
     await sleep(1000);
   }
