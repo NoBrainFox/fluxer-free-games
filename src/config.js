@@ -74,6 +74,9 @@ export function loadConfig() {
     postOnFirstRun: bool('POST_ON_FIRST_RUN', true),
     prefix: str('COMMAND_PREFIX', '!'),
     commandCooldownSeconds: int('COMMAND_COOLDOWN_SECONDS', 10),
+    deleteExpiredPosts: bool('DELETE_EXPIRED_POSTS', false),
+    // A short grace period would delete posts when a game only briefly drops out of CheapShark's list.
+    deleteGraceMinutes: Math.max(int('DELETE_GRACE_MINUTES', 120), MIN_POLL_MINUTES),
     dataDir: str('DATA_DIR', './data'),
   };
 }

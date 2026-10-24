@@ -60,6 +60,8 @@ Everything is set in `.env`.
 | `POLL_INTERVAL_MINUTES` | `60` | How often to check CheapShark. Values outside 15 to 1440 are clamped |
 | `INCLUDE_FREE_TO_PLAY` | `false` | Also announce permanently free-to-play games |
 | `POST_ON_FIRST_RUN` | `true` | On the very first start, announce games that are already free. Set to `false` to only announce future giveaways |
+| `DELETE_EXPIRED_POSTS` | `false` | Delete an announcement once the game is no longer free. Works for posts made by this version or later |
+| `DELETE_GRACE_MINUTES` | `120` | How long a game has to be missing from the free list before its post is deleted (minimum 15) |
 | `COMMAND_PREFIX` | `!` | Prefix for commands |
 | `COMMAND_COOLDOWN_SECONDS` | `10` | Minimum time between commands per channel |
 | `FLUXER_API_URL` | `https://api.fluxer.app` | API base URL, the part before `/v1`. Set it for a self-hosted Fluxer instance, see below |
@@ -98,6 +100,10 @@ By default the bot talks to the public instance at `api.fluxer.app`. For your ow
 ## Troubleshooting
 
 **`Fluxer rejected the bot token`**: `FLUXER_BOT_TOKEN` is wrong. Copy the token from the **Bot** section of your application (User Settings > Applications), not the client secret. Resetting the token invalidates the old one, so update `.env` after every reset and run `docker compose up -d` again. Quotes and a `Bot ` prefix around the token are fine; the bot strips them.
+
+## Deleting expired posts
+
+With `DELETE_EXPIRED_POSTS=true` the bot remembers the message ID of each announcement. After every successful poll, a game that has been missing from the free list for longer than `DELETE_GRACE_MINUTES` gets its post deleted and is forgotten, so a later giveaway of the same game is announced again. If CheapShark can't be reached, nothing is deleted. Removing a store from `STORES` counts as its games no longer being free. Bots can always delete their own messages, so no extra permission is needed.
 
 ## Data
 

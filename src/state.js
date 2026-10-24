@@ -29,8 +29,18 @@ export class PostedState {
     return dealID in this.deals;
   }
 
-  markPosted(dealID, now = Date.now()) {
-    this.deals[dealID] = { postedAt: now, lastSeen: now };
+  // message ({ channelId, messageId }) is kept so the post can be deleted once the deal expires.
+  markPosted(dealID, message, now = Date.now()) {
+    this.deals[dealID] = { postedAt: now, lastSeen: now, ...message };
+  }
+
+  // Posted deals that have not been free for longer than graceMs. Call after touch().
+  expired(graceMs, now = Date.now()) {
+    return Object.entries(this.deals).filter(([, entry]) => entry.messageId && now - entry.lastSeen > graceMs);
+  }
+
+  forget(dealID) {
+    delete this.deals[dealID];
   }
 
   // Refresh lastSeen for deals that are still free and drop long-gone ones.

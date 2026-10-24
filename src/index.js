@@ -43,19 +43,19 @@ async function poll() {
     const fresh = deals.filter((d) => !state.has(d.dealID));
 
     if (!state.initialized && !config.postOnFirstRun) {
-      for (const deal of fresh) state.markPosted(deal.dealID);
+      for (const deal of fresh) state.markPosted(deal.dealID, undefined);
       console.log(`[poll] first run, remembered ${fresh.length} current free deal(s) without posting`);
     } else {
       console.log(`[poll] ${deals.length} free deal(s), ${fresh.length} new`);
       const mention = mentionFor(mentionRole);
       for (const [index, deal] of fresh.entries()) {
-        await sendMessage(api, config.channelId, {
+        const message = await sendMessage(api, config.channelId, {
           // Ping the role once per batch, not once per game.
           content: index === 0 ? mention.content : undefined,
           allowed_mentions: index === 0 ? mention.allowed_mentions : { parse: [] },
           embeds: [dealEmbed(deal, byId)],
         });
-        state.markPosted(deal.dealID);
+        state.markPosted(deal.dealID, { channelId: message.channel_id ?? config.channelId, messageId: message.id });
         await state.save();
         // Stay well below Fluxer's 5 messages / 5 seconds per channel limit.
         await sleep(1500);
@@ -63,10 +63,32 @@ async function poll() {
     }
     state.initialized = true;
     await state.save();
+    if (config.deleteExpiredPosts) await deleteExpiredPosts();
   } catch (err) {
     console.error('[poll] failed:', err.message, err.rawError ? JSON.stringify(err.rawError) : '');
   } finally {
     polling = false;
+  }
+}
+
+// Only runs after a successful poll, so a CheapShark outage never deletes anything:
+// still-free deals have just had lastSeen refreshed by state.touch().
+async function deleteExpiredPosts() {
+  for (const [dealID, entry] of state.expired(config.deleteGraceMinutes * 60 * 1000)) {
+    try {
+      await api.channels.deleteMessage(entry.channelId, entry.messageId);
+      console.log(`[cleanup] deleted post for expired deal ${dealID}`);
+    } catch (err) {
+      // 404: the post is already gone (e.g. deleted by hand), nothing left to do.
+      if (err.status !== 404) {
+        console.warn(`[cleanup] could not delete post for deal ${dealID}, will retry: ${err.message}`);
+        continue;
+      }
+    }
+    // Forget the deal so a later giveaway of the same game is announced again.
+    state.forget(dealID);
+    await state.save();
+    await sleep(1000);
   }
 }
 
