@@ -4,6 +4,7 @@ import { WebSocketManager, WebSocketShardEvents } from '@discordjs/ws';
 import { getFreeDeals, getStores, resolveStores } from './cheapshark.js';
 import { loadConfig } from './config.js';
 import { dealEmbed, dealListEmbed, helpEmbed, mentionFor, storesEmbed } from './embeds.js';
+import { sendMessage } from './send.js';
 import { PostedState } from './state.js';
 
 const config = loadConfig();
@@ -48,7 +49,7 @@ async function poll() {
       console.log(`[poll] ${deals.length} free deal(s), ${fresh.length} new`);
       const mention = mentionFor(config.mentionRole);
       for (const [index, deal] of fresh.entries()) {
-        await api.channels.createMessage(config.channelId, {
+        await sendMessage(api, config.channelId, {
           // Ping the role once per batch, not once per game.
           content: index === 0 ? mention.content : undefined,
           allowed_mentions: index === 0 ? mention.allowed_mentions : { parse: [] },
@@ -63,7 +64,7 @@ async function poll() {
     state.initialized = true;
     await state.save();
   } catch (err) {
-    console.error('[poll] failed:', err.message);
+    console.error('[poll] failed:', err.message, err.rawError ? JSON.stringify(err.rawError) : '');
   } finally {
     polling = false;
   }
@@ -81,7 +82,7 @@ const lastCommandAt = new Map();
 
 async function handleCommand(api, message, name, args) {
   const reply = (body) =>
-    api.channels.createMessage(message.channel_id, {
+    sendMessage(api, message.channel_id, {
       ...body,
       allowed_mentions: { parse: [] },
       message_reference: { message_id: message.id },
