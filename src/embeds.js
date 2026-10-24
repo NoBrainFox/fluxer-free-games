@@ -101,8 +101,26 @@ export function helpEmbed(prefix, pollMinutes) {
       `\`${prefix}stores\` shows all stores and which ones are announced`,
       `\`${prefix}help\` shows this message`,
       '',
+      '**For the community owner, Manage Server or Administrator**',
+      `\`${prefix}subscribe [role]\` announces new free games in this channel, optionally pinging a role`,
+      `\`${prefix}unsubscribe\` stops announcements in this channel`,
+      `\`${prefix}channels\` lists every channel that gets announcements`,
+      `\`${prefix}reload [ping]\` deletes the bot's messages here and reposts the current free games`,
+      '',
       `New free games are checked every ${pollMinutes} minutes.`,
     ].join('\n'),
+  };
+}
+
+// channels: [{ channelId, label, source }]
+export function channelsEmbed(channels) {
+  const lines = channels.map(
+    (c) => `• <#${c.channelId}> (\`${c.channelId}\`) · ${c.label} · ${c.source === 'env' ? 'set in .env' : 'added by command'}`,
+  );
+  return {
+    title: 'Announcement channels',
+    description: (lines.join('\n') || 'No channels yet. Use the subscribe command in a channel to add it.').slice(0, 4096),
+    color: COLOR,
   };
 }
 

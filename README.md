@@ -6,7 +6,8 @@ A small [Fluxer](https://fluxer.app) bot that announces games which are currentl
 - Announces only games it hasn't announced before, and remembers them across restarts
 - Choose stores by name or CheapShark ID, or announce all of them
 - Mention a role, `@everyone`, `@here`, or nobody
-- Prefix commands: `!free`, `!free <store>`, `!stores`, `!help`
+- Announce in several channels, even across communities, each with its own role ping
+- Prefix commands: `!free`, `!free <store>`, `!stores`, `!help`, plus `!subscribe`, `!unsubscribe`, `!channels` and `!reload` for admins
 - Runs in a ~70 MB Alpine container capped at 128 MB RAM
 
 Built on the same libraries the [official Fluxer quickstart](https://docs.fluxer.app/quickstart) uses (`@discordjs/core`, `@discordjs/rest`, `@discordjs/ws`), since Fluxer's API is Discord-compatible. Fluxer does not support slash commands yet, so commands use a prefix.
@@ -14,13 +15,13 @@ Built on the same libraries the [official Fluxer quickstart](https://docs.fluxer
 ## Quick start
 
 1. **Create the bot in Fluxer.** Create an application, copy its bot token (`{application_id}.{secret}`) and invite the bot with the URL from [Inviting the bot](#inviting-the-bot).
-2. **Get the IDs.** Copy the ID of the announcement text channel and, if you want a ping, the ID of the role.
+2. **Pick the channels.** Either put channel IDs in `FLUXER_CHANNELS`, or leave it empty and run `!subscribe` in each channel later.
 3. **Configure and start:**
 
    ```sh
    git clone https://github.com/NoBrainFox/fluxer-free-games.git
    cd fluxer-free-games
-   cp .env.example .env    # then fill in FLUXER_BOT_TOKEN, FLUXER_CHANNEL_ID, CONTACT_EMAIL, MENTION_ROLE, STORES
+   cp .env.example .env    # then fill in FLUXER_BOT_TOKEN, FLUXER_CHANNELS, CONTACT_EMAIL, STORES
    docker compose up -d --build
    docker compose logs -f
    ```
@@ -42,9 +43,9 @@ The only scope needed is `bot`. `84992` grants:
 | View Channel | 1024 | See the announcement channel and command messages |
 | Send Messages | 2048 | Post announcements and command replies |
 | Embed Links | 16384 | Show the game embeds with preview images |
-| Read Message History | 65536 | Reply to command messages |
+| Read Message History | 65536 | Reply to command messages, and find old posts for `!reload` |
 
-If `MENTION_ROLE` is `everyone` or `here`, or the role you ping isn't set to be mentionable by everyone, also grant **Mention @everyone, @here and All Roles** (131072) by using `permissions=216064` instead. No admin rights and no extra gateway intents are needed.
+If a channel pings `everyone` or `here`, or the role you ping isn't set to be mentionable by everyone, also grant **Mention @everyone, @here and All Roles** (131072) by using `permissions=216064` instead. No admin rights and no extra gateway intents are needed.
 
 ## Configuration
 
@@ -53,9 +54,10 @@ Everything is set in `.env`.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `FLUXER_BOT_TOKEN` | *(required)* | Bot token from Fluxer |
-| `FLUXER_CHANNEL_ID` | *(required)* | Text channel for automatic announcements |
+| `FLUXER_CHANNELS` | *(empty)* | Channels for automatic announcements, comma separated, each optionally followed by `:` and the role to ping, e.g. `111111:Free Games,222222:everyone,333333`. A role can be a name or ID, `everyone`, `here`, or left out for no ping. The ping is sent once per batch of new games. Channels added with `!subscribe` are added to these |
+| `FLUXER_CHANNEL_ID` | *(empty)* | Older single-channel setting, still supported. Added to `FLUXER_CHANNELS` |
 | `CONTACT_EMAIL` | *(recommended)* | Your contact email, sent in the User-Agent of CheapShark requests so CheapShark can reach you if the bot misbehaves |
-| `MENTION_ROLE` | *(empty)* | Role to ping, by name (e.g. `Free Games`) or ID, or `everyone`, `here`, or empty for no ping. The ping is sent once per batch of new games |
+| `MENTION_ROLE` | *(empty)* | Role to ping in `FLUXER_CHANNEL_ID`, for older setups |
 | `STORES` | `Steam,GOG,Epic Games Store` | Comma separated CheapShark store names or IDs, or `all`. Partial names work (`epic`) |
 | `POLL_INTERVAL_MINUTES` | `60` | How often to check CheapShark. Values outside 15 to 1440 are clamped |
 | `INCLUDE_FREE_TO_PLAY` | `false` | Also announce permanently free-to-play games |
@@ -82,6 +84,17 @@ Common CheapShark store IDs: `1` Steam, `3` GreenManGaming, `7` GOG, `11` Humble
 | `!free all` | Lists free games on every store |
 | `!stores` | Shows all CheapShark stores and which ones are announced |
 | `!help` | Shows the command list |
+
+These commands only work for the community owner and for members with the **Manage Server** or **Administrator** permission:
+
+| Command | What it does |
+| --- | --- |
+| `!subscribe [role]` | Announces new free games in this channel and posts the ones that are free right now. The optional role (a mention, name or ID, `everyone` or `here`) is pinged with each batch. Run it again to change the role |
+| `!unsubscribe` | Stops announcements in this channel. Existing posts stay |
+| `!channels` | Lists every channel that gets announcements, with its ping |
+| `!reload [ping]` | Deletes every bot message in this channel (tracked posts plus the last 500 messages of history, including ones already deleted by hand) and reposts all games that are free right now. Pings only with `!reload ping` |
+
+Channels set in `.env` can't be changed by command; edit `FLUXER_CHANNELS` instead. To use the bot in another community, invite it there with the same link first.
 
 ## Being nice to the APIs
 
@@ -115,7 +128,7 @@ With `DELETE_EXPIRED_POSTS=true` the bot remembers the message ID of each announ
 
 ## Data
 
-The list of already announced deals lives in `/data/posted.json` in the `bot-data` Docker volume. Delete the volume (`docker compose down -v`) to start fresh. A deal that hasn't been free for 14 days is forgotten, so a later giveaway of the same game is announced again.
+The list of already announced deals (per channel) lives in `/data/posted.json` and the channels added with `!subscribe` in `/data/channels.json`, both in the `bot-data` Docker volume. Data from older single-channel versions is taken over automatically. Delete the volume (`docker compose down -v`) to start fresh. A deal that hasn't been free for 14 days is forgotten, so a later giveaway of the same game is announced again.
 
 ## Development
 
